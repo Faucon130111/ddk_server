@@ -1,4 +1,4 @@
-exports.initSocket = function(app) {
+exports.initSocket = function (app) {
   const io = app.io = require('socket.io')({
     allowEIO3: true
   });
@@ -15,7 +15,7 @@ exports.initSocket = function(app) {
     socket.on('chat-msg', (msg) => {
       io.emit('chat-msg', msg);
     });
-  
+
   });
 
 }
