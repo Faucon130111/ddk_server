@@ -6,11 +6,17 @@ const mysql = require("../modules/mysql_pool");
 const pool = mysql.pool;
 const promisePool = mysql.pool.promise();
 
-// JWT 관련 객체
-const jwt = require("jsonwebtoken");
+// JWT 모듈
+const { TokenType, makeJWT, verify } = require("../modules/jwt");
+
 const { response } = require("express");
-const accessTokenKey = "75fe74bb4fa6b66379826a77ab8b5bb3e0f0220c2b578653d33da35d8b832745";
-const refreshTokenKey = "629d6fedbce42614ce80139bb6f059ff341bc07f03460b908ee5c4ddfed95740";
+const app = express();
+
+router.get("/api/:id", (req, res) => {
+  const id = req.params.id;
+  console.log("id: ", id);
+  res.json(id);
+});
 
 // 회원가입
 router.post("/signUp", (req, res) => {
@@ -54,36 +60,6 @@ router.post("/signUp2", async (req, res) => {
   }
 });
 */
-
-const TokenType = Object.freeze({
-  Access: Symbol(0),
-  Refresh: Symbol(1),
-});
-
-const makeJWT = (id, type) => {
-  const playload = {
-    userId: id,
-  };
-
-  let key = "";
-  let expiresIn = "";
-
-  switch (type) {
-    case TokenType.Access:
-      key = accessTokenKey;
-      expiresIn = "1m";
-      break;
-
-    case TokenType.Refresh:
-      key = refreshTokenKey;
-      expiresIn = "30 days";
-      break;
-  }
-
-  return jwt.sign(playload, key, {
-    expiresIn: expiresIn,
-  });
-};
 
 // 로그인
 router.post("/login", async (req, res) => {
@@ -129,42 +105,41 @@ router.post("/refreshAccessToken", async (req, res) => {
     return res.sendStatus(400);
   }
 
-  jwt.verify(refreshToken, refreshTokenKey, (error, playload) => {
-    if (error) {
-      console.log("refresh token verify error: ", error);
+  verify(refreshToken, (isRefreshTokenExpired, id) => {
+    if (isRefreshTokenExpired == false) {
+      // 새로운 access token 발급
+      const newAccessToken = makeJWT(id, TokenType.Access);
       return res.json({
-        isTokenExpired: true,
+        isRefreshTokenExpired: isRefreshTokenExpired,
+        accessToken: newAccessToken,
       });
     }
-
-    // 새로운 access token 발급
-    const newAccessToken = makeJWT(playload.id, TokenType.Access);
     res.json({
-      accessToken: newAccessToken,
+      isRefreshTokenExpired: isRefreshTokenExpired,
     });
   });
 });
 
-router.post("/test", (req, res) => {
-  const authHeader = req.headers["authorization"];
-  const accessToken = authHeader && authHeader.split(" ")[1];
+// router.post("/test", (req, res) => {
+//   const authHeader = req.headers["authorization"];
+//   const accessToken = authHeader && authHeader.split(" ")[1];
 
-  if (!accessToken) {
-    console.log("wrong access token");
-    return res.sendStatus(400);
-  }
+//   if (!accessToken) {
+//     console.log("wrong access token");
+//     return res.sendStatus(400);
+//   }
 
-  jwt.verify(accessToken, accessTokenKey, (error, playload) => {
-    if (error) {
-      console.log("access token verify error: ", error);
-      // return res.sendStatus(403);
-      return res.json({
-        isTokenExpired: true,
-      });
-    }
+//   jwtModule.jwt.verify(accessToken, accessTokenKey, (error, playload) => {
+//     if (error) {
+//       console.log("access token verify error: ", error);
+//       // return res.sendStatus(403);
+//       return res.json({
+//         isTokenExpired: true,
+//       });
+//     }
 
-    res.json(playload);
-  });
-});
+//     res.json(playload);
+//   });
+// });
 
 module.exports = router;
