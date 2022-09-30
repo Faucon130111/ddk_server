@@ -4,7 +4,7 @@ const path = require("path");
 const cookieParser = require("cookie-parser");
 const logger = require("morgan");
 
-const indexRouter = require("./routes/index");
+const apiRouter = require("./routes/api");
 
 const socketModule = require("./modules/socket");
 
@@ -20,7 +20,14 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
-app.use("/", indexRouter);
+// /api 라우터 미들웨어
+app.use("/api/:id", (req, res, next) => {
+  const id = req.params.id;
+  console.log("/api/", id);
+  next();
+});
+
+app.use("/api", apiRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

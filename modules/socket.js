@@ -6,7 +6,6 @@ exports.initSocket = (app) => {
   io.on("connection", (socket) => {
     const userCount = io.engine.clientsCount;
     console.log("[total: %d] user in (%s)", userCount, socket.id);
-    socket.broadcast.emit("hi");
 
     socket.on("disconnect", () => {
       console.log("user out");

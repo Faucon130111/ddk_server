@@ -9,20 +9,11 @@ const promisePool = mysql.pool.promise();
 // JWT 모듈
 const { TokenType, makeJWT, verify } = require("../modules/jwt");
 
-const { response } = require("express");
-const app = express();
-
-router.get("/api/:id", (req, res) => {
-  const id = req.params.id;
-  console.log("id: ", id);
-  res.json(id);
-});
-
 // 회원가입
 router.post("/signUp", (req, res) => {
   const { id, pw, name } = req.body;
 
-  const sql = "insert into user (id, pw, name) values (?, ?, ?);";
+  const sql = "INSERT INTO user (user_id, user_pw, user_name) VALUES (?, ?, ?);";
   const param = [id, pw, name];
 
   pool.query(sql, param, (err, result) => {
@@ -65,7 +56,7 @@ router.post("/signUp2", async (req, res) => {
 router.post("/login", async (req, res) => {
   const { id, pw } = req.body;
 
-  const selectSQL = "SELECT id, name FROM user WHERE id = ? and pw = ?";
+  const selectSQL = "SELECT user_id, user_name FROM user WHERE user_id = ? and user_pw = ?";
   const selectParams = [id, pw];
 
   const [result] = await promisePool.query(selectSQL, selectParams);
@@ -95,7 +86,7 @@ router.post("/login", async (req, res) => {
 router.post("/refreshAccessToken", async (req, res) => {
   const { refreshToken } = req.body;
 
-  const sql = "SELECT id FROM user WHERE refresh_token = ?";
+  const sql = "SELECT user_id FROM user WHERE refresh_token = ?";
   const params = [refreshToken];
   const [result] = await promisePool.query(sql, params);
   const raw = result[0];
@@ -116,6 +107,7 @@ router.post("/refreshAccessToken", async (req, res) => {
     }
     res.json({
       isRefreshTokenExpired: isRefreshTokenExpired,
+      accessToken: null,
     });
   });
 });
