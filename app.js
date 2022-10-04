@@ -20,13 +20,6 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
-// /api 라우터 미들웨어
-app.use("/api/:id", (req, res, next) => {
-  const id = req.params.id;
-  console.log("/api/", id);
-  next();
-});
-
 app.use("/api", apiRouter);
 
 // catch 404 and forward to error handler

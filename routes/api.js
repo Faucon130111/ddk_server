@@ -7,7 +7,32 @@ const pool = mysql.pool;
 const promisePool = mysql.pool.promise();
 
 // JWT 모듈
-const { TokenType, makeJWT, verify } = require("../modules/jwt");
+const { TokenType, makeJWT, isExpiredAccessToken, isExpiredRefreshToken } = require("../modules/jwt");
+const res = require("express/lib/response");
+
+// Access 토큰 검증 미들웨어
+const auth = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const accessToken = authHeader && authHeader.split(" ")[1];
+
+  console.log("accessToken: ", accessToken);
+
+  if (!accessToken) {
+    console.log("wrong access token");
+    return res.sendStatus(400);
+  }
+
+  isExpiredAccessToken(accessToken, (isExpired, userId) => {
+    if (isExpired) {
+      console.log("access token is expired");
+      return res.json({
+        isAccessTokenExpired: true,
+      });
+    }
+
+    next();
+  });
+};
 
 // 회원가입
 router.post("/signUp", (req, res) => {
@@ -28,29 +53,6 @@ router.post("/signUp", (req, res) => {
     }
   });
 });
-
-/* 스터디용 promisePool
-router.post("/signUp2", async (req, res) => {
-  const { id, pw, name } = req.body;
-
-  const sql = "insert into user (id, pw, name) values (?, ?, ?);";
-  const param = [id, pw, name];
-
-  // promisePool은 promise 객체로 await 가 들어가야한다,
-  // 물론 await 활용하려면 라우터 자체도 async 되어야
-
-  // 굳이굳이 에러를 찍어보고싶다면 catch문으로
-  const [result] = await promisePool.query(sql, param).catch((e) => {
-    console.log(e);
-  });
-
-  // 보통 내 활용법
-  const [result2] = await promisePool.query(sql, param);
-  if (result2.length) {
-    res.json(1);
-  }
-});
-*/
 
 // 로그인
 router.post("/login", async (req, res) => {
@@ -96,7 +98,7 @@ router.post("/refreshAccessToken", async (req, res) => {
     return res.sendStatus(400);
   }
 
-  verify(refreshToken, (isRefreshTokenExpired, id) => {
+  isExpiredRefreshToken(refreshToken, (isRefreshTokenExpired, id) => {
     if (isRefreshTokenExpired == false) {
       // 새로운 access token 발급
       const newAccessToken = makeJWT(id, TokenType.Access);
@@ -112,26 +114,26 @@ router.post("/refreshAccessToken", async (req, res) => {
   });
 });
 
-// router.post("/test", (req, res) => {
-//   const authHeader = req.headers["authorization"];
-//   const accessToken = authHeader && authHeader.split(" ")[1];
+router.post("/chatRooms", auth, async (req, res) => {
+  const { userId } = req.body;
 
-//   if (!accessToken) {
-//     console.log("wrong access token");
-//     return res.sendStatus(400);
-//   }
+  const sql = `SELECT chat_room_member.room_id, chat_room.room_name
+  FROM user
+	  JOIN chat_room_member ON user.id = chat_room_member.user_id AND user.id = ?
+    JOIN chat_room ON user.id = chat_room.creator_id
+  `;
+  const params = [userId];
+  const [result] = await promisePool.query(sql, params);
 
-//   jwtModule.jwt.verify(accessToken, accessTokenKey, (error, playload) => {
-//     if (error) {
-//       console.log("access token verify error: ", error);
-//       // return res.sendStatus(403);
-//       return res.json({
-//         isTokenExpired: true,
-//       });
-//     }
-
-//     res.json(playload);
-//   });
-// });
+  if (result.length) {
+    res.json({
+      chatRooms: result,
+    });
+  } else {
+    res.json({
+      chatRooms: [],
+    });
+  }
+});
 
 module.exports = router;

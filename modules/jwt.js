@@ -33,7 +33,18 @@ const makeJWT = (id, type) => {
   });
 };
 
-const verify = (refreshToken, callback) => {
+const isExpiredAccessToken = (accessToken, callback) => {
+  jwt.verify(accessToken, accessTokenKey, (error, playload) => {
+    if (error) {
+      console.log("access token verify error: ", error);
+      return callback(true);
+    }
+
+    callback(false, playload.id);
+  });
+};
+
+const isExpiredRefreshToken = (refreshToken, callback) => {
   jwt.verify(refreshToken, refreshTokenKey, (error, playload) => {
     if (error) {
       console.log("refresh token verify error: ", error);
@@ -47,5 +58,6 @@ const verify = (refreshToken, callback) => {
 module.exports = {
   TokenType,
   makeJWT,
-  verify,
+  isExpiredAccessToken,
+  isExpiredRefreshToken,
 };
