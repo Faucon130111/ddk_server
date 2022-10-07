@@ -34,21 +34,44 @@ const auth = (req, res, next) => {
   });
 };
 
+// 아이디 중복 체크
+router.post("/isDuplicateId", async (req, res) => {
+  const { userId } = req.body;
+
+  const sql = "SELECT id FROM user WHERE user_id = ?";
+  const param = [userId];
+
+  const [result] = await promisePool.query(sql, param);
+
+  let isDuplicateId = true;
+
+  if (result.length) {
+    isDuplicateId = true;
+  } else {
+    isDuplicateId = false;
+  }
+
+  res.json({
+    isDuplicateId: isDuplicateId,
+  });
+});
+
 // 회원가입
 router.post("/signUp", (req, res) => {
-  const { id, pw, name } = req.body;
+  const { userId, userPw, userName } = req.body;
 
   const sql = "INSERT INTO user (user_id, user_pw, user_name) VALUES (?, ?, ?);";
-  const param = [id, pw, name];
+  const param = [userId, userPw, userName];
 
   pool.query(sql, param, (err, result) => {
     if (err) {
+      console.log(err);
       res.json({
-        isSuccess: false,
+        isSignUpSuccess: false,
       });
     } else {
       res.json({
-        isSuccess: true,
+        isSignUpSuccess: true,
       });
     }
   });
@@ -56,10 +79,10 @@ router.post("/signUp", (req, res) => {
 
 // 로그인
 router.post("/login", async (req, res) => {
-  const { id, pw } = req.body;
+  const { userId, userPw } = req.body;
 
   const selectSQL = "SELECT user_id, user_name FROM user WHERE user_id = ? and user_pw = ?";
-  const selectParams = [id, pw];
+  const selectParams = [userId, userPw];
 
   const [result] = await promisePool.query(selectSQL, selectParams);
   const raw = result[0];
@@ -70,12 +93,12 @@ router.post("/login", async (req, res) => {
   }
 
   // JWT 발행
-  const accessToken = makeJWT(raw.id, TokenType.Access);
-  const refreshToken = makeJWT(raw.id, TokenType.Refresh);
+  const accessToken = makeJWT(raw.user_id, TokenType.Access);
+  const refreshToken = makeJWT(raw.user_id, TokenType.Refresh);
 
   // refresh 토큰 db에 저장
   const updateSQL = "UPDATE user SET refresh_token = ? WHERE id = ?";
-  const updateParams = [refreshToken, raw.id];
+  const updateParams = [refreshToken, raw.user_id];
 
   await promisePool.query(updateSQL, updateParams);
 
@@ -98,10 +121,10 @@ router.post("/refreshAccessToken", async (req, res) => {
     return res.sendStatus(400);
   }
 
-  isExpiredRefreshToken(refreshToken, (isRefreshTokenExpired, id) => {
+  isExpiredRefreshToken(refreshToken, (isRefreshTokenExpired, userId) => {
     if (isRefreshTokenExpired == false) {
       // 새로운 access token 발급
-      const newAccessToken = makeJWT(id, TokenType.Access);
+      const newAccessToken = makeJWT(userId, TokenType.Access);
       return res.json({
         isRefreshTokenExpired: isRefreshTokenExpired,
         accessToken: newAccessToken,
